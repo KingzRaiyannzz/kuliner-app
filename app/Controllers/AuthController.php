@@ -18,7 +18,7 @@ class AuthController extends BaseController
     // ----------------------------------------------------------------
     public function registerForm()
     {
-        if (session()->get('user_id')) {
+        if (session()->get('isLoggedIn')) {
             return redirect()->to('/places');
         }
 
@@ -42,7 +42,7 @@ class AuthController extends BaseController
         ];
 
         $messages = [
-            'email'            => ['is_unique' => 'Email ini sudah terdaftar.'],
+            'email'            => ['is_unique'  => 'Email ini sudah terdaftar.'],
             'password'         => ['min_length' => 'Password minimal 8 karakter.'],
             'password_confirm' => ['matches'    => 'Konfirmasi password tidak cocok.'],
         ];
@@ -53,16 +53,19 @@ class AuthController extends BaseController
             return redirect()->back();
         }
 
+        // Role default saat register adalah 'kontributor'
         $this->userModel->insert([
             'name'          => $this->request->getPost('name'),
             'email'         => $this->request->getPost('email'),
             'password_hash' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT),
+            'role'          => 'kontributor',
         ]);
 
         $user = $this->userModel->where('email', $this->request->getPost('email'))->first();
         $this->setSession($user);
 
-        return redirect()->to('/places')->with('success', 'Selamat datang, ' . $user['name'] . '! 🎉');
+        return redirect()->to('/places')
+            ->with('success', 'Selamat datang, ' . $user['name'] . '! 🎉');
     }
 
     // ----------------------------------------------------------------
@@ -70,7 +73,7 @@ class AuthController extends BaseController
     // ----------------------------------------------------------------
     public function loginForm()
     {
-        if (session()->get('user_id')) {
+        if (session()->get('isLoggedIn')) {
             return redirect()->to('/places');
         }
 
@@ -109,30 +112,33 @@ class AuthController extends BaseController
 
         $this->setSession($user);
 
+        // Redirect berdasarkan role
+        if ($user['role'] === 'admin') {
+            return redirect()->to('/admin');
+        }
+
         $redirect = session()->getFlashdata('redirect_url') ?? '/places';
-        return redirect()->to($redirect)->with('success', 'Selamat datang kembali, ' . $user['name'] . '!');
+        return redirect()->to($redirect)
+            ->with('success', 'Selamat datang kembali, ' . $user['name'] . '!');
     }
 
-    // ----------------------------------------------------------------
-    // GET /logout
-    // ----------------------------------------------------------------
-    public function logout()
-    {
-        session()->destroy();
-        return redirect()->to('/login')->with('success', 'Kamu berhasil keluar.');
-    }
-
-    // ----------------------------------------------------------------
-    // Helper: simpan data user ke session
-    // ----------------------------------------------------------------
+    // Helper: simpan data user + role ke session
     private function setSession(array $user): void
     {
         session()->set([
             'user_id'    => $user['id'],
             'user_name'  => $user['name'],
             'user_email' => $user['email'],
-            'user_avatar' => $user['avatar'],
+            'user_role'  => $user['role'],       // ← role disimpan di session
             'isLoggedIn' => true,
         ]);
+    }
+
+    // GET /logout
+    public function logout()
+    {
+        session()->destroy();
+        return redirect()->to('/login')
+            ->with('success', 'Kamu berhasil keluar.');
     }
 }
