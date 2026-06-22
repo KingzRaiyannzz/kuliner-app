@@ -9,247 +9,341 @@ use App\Models\ReviewModel;
 
 class PlaceController extends BaseController
 {
-    protected PlaceModel $placeModel;
-    protected CategoryModel $categoryModel;
-    protected TagModel $tagModel;
+    protected $db;
 
     public function __construct()
     {
-        $this->placeModel = new PlaceModel();
-        $this->categoryModel = new CategoryModel();
-        $this->tagModel = new TagModel();
+        $this->db = \Config\Database::connect();
     }
 
-    // ----------------------------------------------------------------
-    // GET /places
-    // Tampilkan daftar semua tempat + peta Leaflet
-    // ----------------------------------------------------------------
     public function index()
     {
-        // Ambil filter dari query string (?search=...&category=...&tag=...&min_rating=...)
+        // ... (Tetap gunakan kode index Anda yang sebelumnya) ...
+        $search     = $this->request->getGet('search') ?? '';
+        $category   = $this->request->getGet('category') ?? '';
+        $tag        = $this->request->getGet('tag') ?? '';
+        $minRating  = $this->request->getGet('min_rating') ?? 0;
+        $sort       = $this->request->getGet('sort') ?? 'created_at';
+        $page       = max((int)($this->request->getGet('page') ?? 1), 1);
+        $perPage    = 10;
+
         $filters = [
-            'search'     => $this->request->getGet('search'),
-            'category'   => $this->request->getGet('category'),
-            'tag'        => $this->request->getGet('tag'),
-            'min_rating' => $this->request->getGet('min_rating'),
-            'sort'       => $this->request->getGet('sort') ?? 'created_at',
-            'page'       => $this->request->getGet('page') ?? 1,
+            'search'     => $search,
+            'category'   => $category,
+            'tag'        => $tag,
+            'min_rating' => $minRating,
+            'sort'       => $sort,
+            'page'       => $page
         ];
 
-        $result = $this->placeModel->getWithFilters($filters, 12);
+        $builder = $this->db->table('places p')
+            ->select('p.*, 
+                      COALESCE(AVG(r.rating), 0) as avg_rating, 
+                      COUNT(r.id) as review_count,
+                      GROUP_CONCAT(DISTINCT c.name SEPARATOR ", ") as category_names')
+            ->join('reviews r', 'r.place_id = p.id', 'left')
+            ->join('place_categories pc', 'pc.place_id = p.id', 'left')
+            ->join('categories c', 'c.id = pc.category_id', 'left')
+            ->join('place_tags pt', 'pt.place_id = p.id', 'left')
+            ->join('tags t', 't.id = pt.tag_id', 'left')
+            ->groupBy('p.id');
 
-        return view('places/index', [
-            'title'      => 'Temukan Kuliner',
-            'places'     => $result['data'],
-            'pagination' => $result,
+        if (!empty($search)) {
+            $builder->like('p.name', $search)->orLike('p.address', $search);
+        }
+        if (!empty($category)) {
+            $builder->where('c.slug', $category);
+        }
+        if (!empty($tag)) {
+            $builder->where('t.slug', $tag);
+        }
+
+        if ($minRating > 0) {
+            $builder->having('avg_rating >=', $minRating);
+        }
+
+        $mapBuilder = clone $builder;
+
+        switch ($sort) {
+            case 'avg_rating':
+                $builder->orderBy('avg_rating', 'DESC');
+                break;
+            case 'review_count':
+                $builder->orderBy('review_count', 'DESC');
+                break;
+            case 'name':
+                $builder->orderBy('p.name', 'ASC');
+                break;
+            case 'created_at':
+            default:
+                $builder->orderBy('p.created_at', 'DESC');
+                break;
+        }
+
+        $totalPlacesResult = $mapBuilder->get()->getResultArray();
+        $totalItems        = count($totalPlacesResult);
+        $lastPage          = max(ceil($totalItems / $perPage), 1);
+        $offset            = ($page - 1) * $perPage;
+
+        $places = $builder->limit($perPage, $offset)->get()->getResultArray();
+
+        $pagination = [
+            'total'     => $totalItems,
+            'page'      => $page,
+            'last_page' => $lastPage
+        ];
+
+        $categories = $this->db->table('categories c')
+            ->select('c.*, COUNT(pc.place_id) as place_count')
+            ->join('place_categories pc', 'pc.category_id = c.id', 'left')
+            ->groupBy('c.id')
+            ->get()->getResultArray();
+
+        $tags = $this->db->table('tags')->get()->getResultArray();
+
+        $data = [
             'filters'    => $filters,
-            'categories' => $this->categoryModel->getWithCount(),
-            'tags'       => $this->tagModel->getWithCount(),
-            // Data JSON untuk marker peta Leaflet
-            'mapData'    => json_encode($this->placeModel->getForMap()),
-        ]);
+            'categories' => $categories,
+            'tags'       => $tags,
+            'places'     => $places,
+            'pagination' => $pagination,
+            'mapData'    => json_encode($totalPlacesResult)
+        ];
+
+        return view('places/index', $data);
     }
 
-    // ----------------------------------------------------------------
-    // GET /places/create
-    // Tampilkan form tambah tempat baru
-    // ----------------------------------------------------------------
+    // ==========================================
+    // METHOD CREATE (Disesuaikan dengan kebutuhan View Anda)
+    // ==========================================
     public function create()
     {
-        // Cek login — hanya user yang login bisa tambah tempat
-        if (!session()->get('user_id')) {
-            return redirect()->to('/login')->with('error', 'Login dulu untuk menambahkan tempat.');
-        }
+        $categories = $this->db->table('categories')->get()->getResultArray();
+        $tags = $this->db->table('tags')->get()->getResultArray();
 
-        return view('places/create', [
-            'title'      => 'Tambah Tempat Kuliner',
-            'categories' => $this->categoryModel->findAll(),
-            'tags'       => $this->tagModel->findAll(),
-            // Kirim balik data lama jika form disubmit tapi gagal validasi
-            'old'        => session()->getFlashdata('old_input') ?? [],
+        // Mengambil data input lama dan error agar tidak memicu "undefined variable" di view Anda
+        $data = [
+            'categories' => $categories,
+            'tags'       => $tags,
+            'title'      => 'Tambah Tempat Kuliner Baru',
             'errors'     => session()->getFlashdata('errors') ?? [],
-        ]);
+            'old'        => session()->getFlashdata('_ci_old_input')['post'] ?? []
+        ];
+
+        return view('places/create', $data);
     }
 
-    // ----------------------------------------------------------------
-    // POST /places
-    // Proses simpan tempat baru ke database
-    // ----------------------------------------------------------------
+    // ==========================================
+    // METHOD STORE (Mendukung upload foto & tag dinamis)
+    // ==========================================
     public function store()
     {
-        if (!session()->get('user_id')) {
-            return redirect()->to('/login');
-        }
-
-        // Validasi input
+        // 1. Validasi Input Form
         $rules = [
-            'name'        => 'required|min_length[3]|max_length[150]',
-            'address'     => 'required|min_length[5]',
-            'latitude'    => 'required|decimal',
-            'longitude'   => 'required|decimal',
-            'description' => 'permit_empty|max_length[1000]',
-            'categories'  => 'permit_empty',
-            'tags'        => 'permit_empty',
+            'name'        => 'required|min_length[3]',
+            'address'     => 'required',
+            'latitude'    => 'required',
+            'longitude'   => 'required',
+            'thumbnail'   => 'max_size[thumbnail,2048]|is_image[thumbnail]|mime_in[thumbnail,image/jpg,image/jpeg,image/png]',
         ];
 
         if (!$this->validate($rules)) {
-            // Simpan error dan data lama ke flash session, lalu redirect kembali ke form
-            session()->setFlashdata('errors',    $this->validator->getErrors());
-            session()->setFlashdata('old_input', $this->request->getPost());
-            return redirect()->back();
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        // Upload thumbnail (opsional)
-        $thumbnailPath = null;
-        $thumbnail = $this->request->getFile('thumbnail');
-        if ($thumbnail && $thumbnail->isValid() && !$thumbnail->hasMoved()) {
-            $newName = $thumbnail->getRandomName();
-            $thumbnail->move(WRITEPATH . 'uploads/places', $newName);
-            $thumbnailPath = 'uploads/places/' . $newName;
+        // 2. Proses Upload Gambar (jika ada file yang diunggah)
+        $thumbnailName = null;
+        $fileFile = $this->request->getFile('thumbnail');
+
+        if ($fileFile && $fileFile->isValid() && !$fileFile->hasMoved()) {
+            $thumbnailName = $fileFile->getRandomName();
+            // File akan disimpan di folder: public/uploads/
+            $fileFile->move(FCPATH . 'uploads', $thumbnailName);
         }
 
-        // Simpan data utama ke tabel places
-        $placeId = $this->placeModel->insert([
-            'user_id'      => session()->get('user_id'),
-            'name'         => $this->request->getPost('name'),
-            'description'  => $this->request->getPost('description'),
-            'address'      => $this->request->getPost('address'),
-            'latitude'     => $this->request->getPost('latitude'),
-            'longitude'    => $this->request->getPost('longitude'),
-            'osm_place_id' => $this->request->getPost('osm_place_id'),
-            'thumbnail'    => $thumbnailPath,
-        ]);
+        // 3. Siapkan data utama tabel places
+        $dataPlace = [
+            'user_id'     => session()->get('user_id'),
 
-        // Simpan relasi categories (tabel pivot place_categories)
-        $categoryIds = $this->request->getPost('categories') ?? [];
-        if (!empty($categoryIds)) {
-            $this->placeModel->syncCategories($placeId, $categoryIds);
-        }
+            'name'        => $this->request->getPost('name'),
+            'address'     => $this->request->getPost('address'),
+            'description' => $this->request->getPost('description') ?? '',
+            'latitude'    => $this->request->getPost('latitude'),
+            'longitude'   => $this->request->getPost('longitude'),
+            'thumbnail'   => $thumbnailName,
 
-        // Simpan relasi tags — bisa dari checkbox (id) atau input teks (nama baru)
-        $tagIds = [];
-        $tagInputs = $this->request->getPost('tags') ?? [];
-        foreach ($tagInputs as $input) {
-            // Jika input berupa angka = id tag existing, jika teks = buat tag baru
-            if (is_numeric($input)) {
-                $tagIds[] = (int) $input;
-            } else {
-                $tagIds[] = (new TagModel())->findOrCreate($input);
+            'created_at'  => date('Y-m-d H:i:s'),
+            'updated_at'  => date('Y-m-d H:i:s'),
+        ];
+
+        // Mulai database transaction
+        $this->db->transStart();
+
+        // Simpan data ke tabel 'places'
+        $this->db->table('places')->insert($dataPlace);
+
+        $placeId = $this->db->insertID();
+
+        // 4. Simpan relasi Kategori
+        $categories = $this->request->getPost('categories');
+        if (!empty($categories) && is_array($categories)) {
+            foreach ($categories as $categoryId) {
+                $this->db->table('place_categories')->insert([
+                    'place_id'    => $placeId,
+                    'category_id' => $categoryId
+                ]);
             }
         }
-        if (!empty($tagIds)) {
-            $this->placeModel->syncTags($placeId, $tagIds);
+
+        // 5. Simpan relasi Tag (Mendukung ID Angka maupun Teks Tag Baru)
+        $tagsInput = $this->request->getPost('tags');
+        if (!empty($tagsInput) && is_array($tagsInput)) {
+            foreach ($tagsInput as $tagData) {
+
+                if (is_numeric($tagData)) {
+                    // Jika data berupa ID angka (Tag yang sudah ada)
+                    $tagId = $tagData;
+                } else {
+                    // Jika data berupa Teks/String (Tag baru dari input custom)
+                    // Cek dulu apakah nama tag tersebut sebenarnya sudah ada di database
+                    $existingTag = $this->db->table('tags')->where('name', $tagData)->get()->getRowArray();
+
+                    if ($existingTag) {
+                        $tagId = $existingTag['id'];
+                    } else {
+                        // Jika benar-benar baru, buat tag dan slug baru lalu simpan ke tabel tags
+                        $slug = strtolower(url_title($tagData));
+                        $this->db->table('tags')->insert([
+                            'name' => $tagData,
+                            'slug' => $slug
+                        ]);
+                        $tagId = $this->db->insertID();
+                    }
+                }
+
+                // Masukkan relasi ke tabel pivot 'place_tags'
+                $this->db->table('place_tags')->insert([
+                    'place_id' => $placeId,
+                    'tag_id'   => $tagId
+                ]);
+            }
+        }
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === FALSE) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Gagal menyimpan data kuliner.');
         }
 
         return redirect()->to('/places/' . $placeId)
             ->with('success', 'Tempat kuliner berhasil ditambahkan!');
     }
 
-    // ----------------------------------------------------------------
-    // GET /places/{id}
-    // Tampilkan halaman detail + peta + semua review
-    // ----------------------------------------------------------------
-    public function show(int $id)
+    public function show($id)
     {
-        $place = $this->placeModel->getDetail($id);
+        $placeModel  = new \App\Models\PlaceModel();
+        $reviewModel = new \App\Models\ReviewModel();
+
+        $place = $placeModel->getDetail((int)$id);
+
+        //dd($place);
 
         if (!$place) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound(
-                'Tempat dengan ID ' . $id . ' tidak ditemukan.'
-            );
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
-        $reviewModel = new ReviewModel();
+        $reviews = $this->db->table('reviews r')
+            ->select('r.*, u.name as reviewer_name')
+            ->join('users u', 'u.id = r.user_id', 'left')
+            ->where('r.place_id', $id)
+            ->orderBy('r.id', 'DESC')
+            ->get()
+            ->getResultArray();
+
+        $distribution = [];
+
+        foreach ([1, 2, 3, 4, 5] as $star) {
+            $distribution[$star] = $this->db->table('reviews')
+                ->where('place_id', $id)
+                ->where('rating', $star)
+                ->countAllResults();
+        }
+
+        $hasReviewed = false;
+
+        if (session()->get('user_id')) {
+            $hasReviewed = $this->db->table('reviews')
+                ->where('user_id', session()->get('user_id'))
+                ->where('place_id', $id)
+                ->countAllResults() > 0;
+        }
 
         return view('places/show', [
-            'title'        => $place['name'],
             'place'        => $place,
-            'reviews'      => $reviewModel->getByPlace($id, 10),
-            'distribution' => $reviewModel->getRatingDistribution($id),
-            // Cek apakah user yang sedang login sudah pernah review
-            'hasReviewed'  => session()->get('user_id')
-                ? $reviewModel->hasReviewed(session()->get('user_id'), $id)
-                : false,
+            'reviews'      => $reviews,
+            'distribution' => $distribution,
+            'hasReviewed'  => $hasReviewed
         ]);
     }
 
-    // ----------------------------------------------------------------
-    // GET /places/{id}/edit
-    // ----------------------------------------------------------------
-    public function edit(int $id)
+    public function edit($id) // method untuk edit tempat kuliner
     {
-        $place = $this->placeModel->find($id);
+        $placeModel = new PlaceModel();
 
-        if (!$place || $place['user_id'] !== session()->get('user_id')) {
-            return redirect()->to('/places')->with('error', 'Kamu tidak punya akses untuk mengedit tempat ini.');
-        }
+        $place = $placeModel->find($id);
 
-        return view('places/edit', [
-            'title'      => 'Edit: ' . $place['name'],
-            'place'      => $this->placeModel->getDetail($id),
-            'categories' => $this->categoryModel->findAll(),
-            'tags'       => $this->tagModel->findAll(),
-        ]);
-    }
-
-    // ----------------------------------------------------------------
-    // POST /places/{id}/update
-    // ----------------------------------------------------------------
-    public function update(int $id)
-    {
-        $place = $this->placeModel->find($id);
-
-        if (!$place || $place['user_id'] !== session()->get('user_id')) {
-            return redirect()->to('/places')->with('error', 'Akses ditolak.');
-        }
-
-        $rules = [
-            'name'    => 'required|min_length[3]|max_length[150]',
-            'address' => 'required|min_length[5]',
-        ];
-
-        if (!$this->validate($rules)) {
-            session()->setFlashdata('errors', $this->validator->getErrors());
-            return redirect()->back();
+        if (!$place) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
         $data = [
-            'name'         => $this->request->getPost('name'),
-            'description'  => $this->request->getPost('description'),
-            'address'      => $this->request->getPost('address'),
-            'latitude'     => $this->request->getPost('latitude'),
-            'longitude'    => $this->request->getPost('longitude'),
+            'place' => $place,
+            'categories' => $this->db->table('categories')->get()->getResultArray(),
+            'tags' => $this->db->table('tags')->get()->getResultArray()
         ];
 
-        // Ganti thumbnail jika ada upload baru
-        $thumbnail = $this->request->getFile('thumbnail');
-        if ($thumbnail && $thumbnail->isValid() && !$thumbnail->hasMoved()) {
-            $newName = $thumbnail->getRandomName();
-            $thumbnail->move(WRITEPATH . 'uploads/places', $newName);
-            $data['thumbnail'] = 'uploads/places/' . $newName;
-        }
-
-        $this->placeModel->update($id, $data);
-        $this->placeModel->syncCategories($id, $this->request->getPost('categories') ?? []);
-        $this->placeModel->syncTags($id, $this->request->getPost('tags') ?? []);
-
-        return redirect()->to('/places/' . $id)->with('success', 'Berhasil diupdate!');
+        return view('places/edit', $data);
     }
 
-    // ----------------------------------------------------------------
-    // POST /places/{id}/delete
-    // Soft delete — data tidak benar-benar dihapus dari database
-    // ----------------------------------------------------------------
-    public function delete(int $id)
+    public function update($id) // method untuk uppdate tempat kuliner
     {
-        $place = $this->placeModel->find($id);
+        $placeModel = new PlaceModel();
 
-        if (!$place || $place['user_id'] !== session()->get('user_id')) {
-            return redirect()->to('/places')->with('error', 'Akses ditolak.');
+        $place = $placeModel->find($id);
+
+        if (!$place) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
-        $this->placeModel->delete($id); // soft delete — mengisi kolom deleted_at
+        $data = [
+            'name'        => $this->request->getPost('name'),
+            'address'     => $this->request->getPost('address'),
+            'description' => $this->request->getPost('description'),
+            'latitude'    => $this->request->getPost('latitude'),
+            'longitude'   => $this->request->getPost('longitude'),
+        ];
 
-        return redirect()->to('/places')->with('success', 'Tempat berhasil dihapus.');
+        $placeModel->update($id, $data);
+
+        return redirect()->to('/places/' . $id)
+            ->with('success', 'Tempat berhasil diperbarui.');
+    }
+
+    public function delete($id)
+    {
+        $placeModel = new PlaceModel();
+
+        $place = $placeModel->find($id);
+
+        if (!$place) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        $placeModel->delete($id);
+
+        return redirect()->to('/places')
+            ->with('success', 'Tempat berhasil dihapus.');
     }
 }

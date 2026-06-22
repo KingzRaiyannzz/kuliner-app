@@ -6,13 +6,27 @@ use CodeIgniter\Model;
 
 class ReviewModel extends Model
 {
+    public function hasReviewed(int $userId, int $placeId): bool
+    {
+        return $this->where('user_id', $userId)
+            ->where('place_id', $placeId)
+            ->countAllResults() > 0;
+    }
+
     protected $table            = 'reviews';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = [];
+    protected $allowedFields    = [
+        'user_id',
+        'place_id',
+        'rating',
+        'comment',
+        'photo',
+        'created_at'
+    ];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

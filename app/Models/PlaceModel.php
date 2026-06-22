@@ -132,7 +132,8 @@ class PlaceModel extends Model
             ->where('p.id', $id)
             ->where('p.deleted_at IS NULL')
             ->groupBy('p.id')
-            ->get()->getRowArray();
+            ->get()
+            ->getRowArray();
 
         if (!$place) return null;
 

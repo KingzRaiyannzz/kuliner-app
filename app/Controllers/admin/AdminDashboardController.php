@@ -9,7 +9,7 @@ use App\Models\UserModel;
 use App\Models\CategoryModel;
 use App\Models\TagModel;
 
-class DashboardController extends BaseController
+class AdminDashboardController extends BaseController
 {
     public function index()
     {

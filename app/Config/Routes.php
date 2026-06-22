@@ -32,7 +32,8 @@ $routes->group('', ['filter' => 'kontributor'], function ($routes) {
 
     // Tempat kuliner — tambah & edit milik sendiri
     $routes->get('places/create',           'PlaceController::create');
-    $routes->post('places',                 'PlaceController::store');
+    $routes->post('places/create',          'PlaceController::store'); // Perbaikan: Menangani submit form jika action mengarah ke places/create
+    $routes->post('places',                 'PlaceController::store'); // Menangani submit form jika action mengarah ke places
     $routes->get('places/(:num)/edit',      'PlaceController::edit/$1');
     $routes->post('places/(:num)/update',   'PlaceController::update/$1');
     $routes->post('places/(:num)/delete',   'PlaceController::delete/$1');
@@ -49,7 +50,7 @@ $routes->group('', ['filter' => 'kontributor'], function ($routes) {
 $routes->group('admin', ['filter' => 'admin'], function ($routes) {
 
     // Dashboard
-    $routes->get('/',                       'Admin\DashboardController::index');
+    $routes->get('/',                       'Admin\AdminDashboardController::index');
 
     // Kelola kategori
     $routes->get('categories',              'Admin\CategoryController::index');
@@ -62,7 +63,7 @@ $routes->group('admin', ['filter' => 'admin'], function ($routes) {
     $routes->post('tags/(:num)/delete',     'Admin\TagController::destroy/$1');
 
     // Moderasi tempat (approve / reject)
-    $routes->get('places',                  'Admin\PlaceController::index');
+    $routes->get('places',                  'Admin\AdminPlaceController::index');
     $routes->post('places/(:num)/verify',   'Admin\PlaceController::verify/$1');
     $routes->post('places/(:num)/delete',   'Admin\PlaceController::destroy/$1');
 
@@ -73,8 +74,4 @@ $routes->group('admin', ['filter' => 'admin'], function ($routes) {
     // Kelola user
     $routes->get('users',                   'Admin\UserController::index');
     $routes->post('users/(:num)/role',      'Admin\UserController::updateRole/$1');
-
-    // Tambahkan baris ini
-    $routes->post('places/(:num)/verify',       'Admin\PlaceController::verify/$1');
-    $routes->post('places/(:num)/delete',       'Admin\PlaceController::destroy/$1');
 });

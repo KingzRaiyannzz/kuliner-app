@@ -65,7 +65,6 @@
             border-bottom: 1px solid #f0f0f0;
         }
 
-        /* Hero */
         .place-thumbnail {
             width: 100%;
             height: 220px;
@@ -254,7 +253,7 @@
             text-decoration: underline;
         }
 
-        /* Rating summary sidebar */
+        /* Rating summary */
         .rating-big {
             display: flex;
             align-items: flex-start;
@@ -312,7 +311,7 @@
             width: 18px;
         }
 
-        /* Peta */
+        /* Map */
         #map-detail {
             width: 100%;
             height: 200px;
@@ -376,7 +375,6 @@
         textarea.ta:focus {
             outline: none;
             border-color: #1D9E75;
-            box-shadow: 0 0 0 3px rgba(29, 158, 117, .12);
         }
 
         .char-hint {
@@ -444,16 +442,14 @@
 <body>
 
     <div class="page-header">
-        <a href="/places">← Kembali</a>
+        <a href="/places">← Kembali ke Daftar</a>
         <span style="color:#ddd">|</span>
         <span style="font-size:13px; color:#777"><?= esc($place['name']) ?></span>
     </div>
 
     <div class="layout">
 
-        <!-- =============================================
-       KIRI: Detail + Review List + Form Review
-  ============================================= -->
+        <!-- KIRI: Detail Tempat + Review + Form -->
         <div>
 
             <?php if (session()->getFlashdata('success')): ?>
@@ -463,10 +459,12 @@
                 <div class="alert alert-error">⚠️ <?= session()->getFlashdata('error') ?></div>
             <?php endif; ?>
 
-            <!-- Detail tempat -->
+            <!-- Detail Tempat -->
             <div class="card">
-                <?php if ($place['thumbnail']): ?>
-                    <img class="place-thumbnail" src="/<?= esc($place['thumbnail']) ?>" alt="<?= esc($place['name']) ?>">
+                <?php if (!empty($place['thumbnail'])): ?>
+                    <img class="place-thumbnail"
+                        src="/<?= esc($place['thumbnail']) ?>"
+                        alt="<?= esc($place['name']) ?>">
                 <?php else: ?>
                     <div class="place-thumbnail-empty">🍜</div>
                 <?php endif; ?>
@@ -485,18 +483,20 @@
 
                 <div class="place-address">📍 <?= esc($place['address']) ?></div>
 
-                <?php if ($place['description']): ?>
-                    <div class="place-desc"><?= nl2br(esc((string)$place['description'])) ?></div>
+                <?php if (!empty($place['description'])): ?>
+                    <div class="place-desc"><?= nl2br(esc($place['description'])) ?></div>
                 <?php endif; ?>
 
+                <!-- Kategori -->
                 <?php if (!empty($place['categories'])): ?>
                     <div class="chip-row" style="margin-bottom:6px">
                         <?php foreach ($place['categories'] as $c): ?>
-                            <span class="chip-cat"><?= esc($c['icon']) ?> <?= esc($c['name']) ?></span>
+                            <span class="chip-cat"><?= esc($c['icon'] ?? '') ?> <?= esc($c['name']) ?></span>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
 
+                <!-- Tags -->
                 <?php if (!empty($place['tags'])): ?>
                     <div class="chip-row">
                         <?php foreach ($place['tags'] as $t): ?>
@@ -508,7 +508,9 @@
 
             <!-- Daftar Review -->
             <div class="card" id="reviews">
-                <div class="card-title">💬 Ulasan (<?= (int)$place['review_count'] ?>)</div>
+                <div class="card-title">
+                    💬 Ulasan (<?= (int)($place['review_count'] ?? 0) ?>)
+                </div>
 
                 <?php if (empty($reviews)): ?>
                     <p style="text-align:center; color:#bbb; padding:24px 0; font-size:14px">
@@ -529,13 +531,13 @@
                                     <?= str_repeat('⭐', (int)$rv['rating']) ?>
                                 </div>
                             </div>
-                            <?php if (isset($rv['comment']) && is_string($rv['comment']) && $rv['comment'] !== ''): ?>
+                            <?php if (!empty($rv['comment'])): ?>
                                 <div class="review-comment"><?= nl2br(esc($rv['comment'])) ?></div>
                             <?php endif; ?>
-                            <?php if ($rv['photo']): ?>
+                            <?php if (!empty($rv['photo'])): ?>
                                 <img src="/<?= esc($rv['photo']) ?>" class="review-photo" alt="Foto review">
                             <?php endif; ?>
-                            <!-- Tombol hapus hanya untuk pemilik review -->
+                            <!-- Hapus review hanya untuk pemiliknya -->
                             <?php if (session()->get('user_id') == $rv['user_id']): ?>
                                 <form action="/reviews/<?= (int)$rv['id'] ?>/delete" method="POST"
                                     onsubmit="return confirm('Hapus ulasan ini?')">
@@ -555,13 +557,16 @@
                 <?php $rvErrors = session()->getFlashdata('review_errors'); ?>
                 <?php if (!empty($rvErrors)): ?>
                     <div class="alert alert-error">
-                        <?php foreach ($rvErrors as $e): ?><p>⚠️ <?= esc($e) ?></p><?php endforeach; ?>
+                        <?php foreach ($rvErrors as $e): ?>
+                            <p>⚠️ <?= esc($e) ?></p>
+                        <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
 
                 <?php if (!session()->get('user_id')): ?>
                     <div class="login-prompt">
-                        <a href="/login">Login</a> atau <a href="/register">daftar</a> untuk memberikan ulasan.
+                        <a href="/login">Login</a> atau <a href="/register">daftar</a>
+                        untuk memberikan ulasan.
                     </div>
 
                 <?php elseif ($hasReviewed): ?>
@@ -588,7 +593,8 @@
                         <div style="margin-bottom:10px">
                             <label class="flabel" for="comment">Komentar (opsional)</label>
                             <textarea name="comment" id="comment" class="ta"
-                                placeholder="Ceritakan soal rasa, harga, suasana, pelayanan..." maxlength="500"></textarea>
+                                placeholder="Ceritakan soal rasa, harga, suasana..."
+                                maxlength="500"></textarea>
                             <div class="char-hint"><span id="char-used">0</span>/500 karakter</div>
                         </div>
 
@@ -596,7 +602,9 @@
                         <div style="margin-bottom:10px">
                             <label class="flabel">Foto (opsional)</label>
                             <input type="file" name="photo" class="file-input" accept="image/*">
-                            <div style="font-size:11px; color:#bbb; margin-top:3px">Maks 2MB · JPG / PNG / WebP</div>
+                            <div style="font-size:11px;color:#bbb;margin-top:3px">
+                                Maks 2MB · JPG / PNG / WebP
+                            </div>
                         </div>
 
                         <button type="submit" class="btn-submit-review">⭐ Kirim Ulasan</button>
@@ -606,16 +614,14 @@
 
         </div>
 
-        <!-- =============================================
-       KANAN: Rating Summary + Peta + Aksi
-  ============================================= -->
+        <!-- KANAN: Rating + Peta + Aksi -->
         <div>
 
-            <!-- Rating summary -->
+            <!-- Rating Summary -->
             <div class="card">
                 <div class="card-title">⭐ Ringkasan Rating</div>
                 <?php
-                $avg   = (float)($place['avg_rating'] ?? 0);
+                $avg   = (float)($place['avg_rating']   ?? 0);
                 $total = (int)  ($place['review_count'] ?? 0);
                 ?>
                 <div class="rating-big">
@@ -626,8 +632,10 @@
                     </div>
                     <div style="flex:1">
                         <?php foreach ([5, 4, 3, 2, 1] as $star): ?>
-                            <?php $cnt = (int)($distribution[(string)$star] ?? 0);
-                            $pct = $total > 0 ? round($cnt / $total * 100) : 0; ?>
+                            <?php
+                            $cnt = (int)($distribution[(string)$star] ?? 0);
+                            $pct = $total > 0 ? round($cnt / $total * 100) : 0;
+                            ?>
                             <div class="bar-row">
                                 <div class="bar-label"><?= $star ?></div>
                                 <div class="bar-track">
@@ -640,32 +648,47 @@
                 </div>
             </div>
 
-            <!-- Peta mini -->
-            <?php if ($place['latitude'] && $place['longitude']): ?>
+            <!-- Peta Mini -->
+            <?php if (!empty($place['latitude']) && !empty($place['longitude'])): ?>
                 <div class="card">
                     <div class="card-title">🗺️ Lokasi</div>
                     <div id="map-detail"></div>
-                    <div style="font-size:11px; color:#aaa; text-align:center; margin-top:8px; line-height:1.5">
+                    <div style="font-size:11px;color:#aaa;text-align:center;margin-top:8px;line-height:1.5">
                         <?= esc($place['address']) ?>
                     </div>
                 </div>
             <?php endif; ?>
 
-            <!-- Tombol aksi untuk pemilik -->
-            <?php if (session()->get('user_id') == $place['user_id']): ?>
+            <!-- Tombol Edit/Hapus untuk pemilik -->
+            <div class="card">
+                <pre>
+Session User ID : <?= session()->get('user_id') ?? 'NULL' ?>
+Place User ID   : <?= $place['user_id'] ?? 'NULL' ?>
+</pre>
+            </div>
+
+            <?php if (
+                session()->get('user_id') == $place['user_id']
+                && session()->get('role') !== 'admin'
+            ): ?>
                 <div class="card">
                     <a href="/places/<?= (int)$place['id'] ?>/edit"
-                        style="display:block; padding:10px; text-align:center; background:#f9fafb;
-                border:1px solid #e5e5e5; border-radius:8px; font-size:13px;
-                color:#555; text-decoration:none; margin-bottom:8px">
+                        style="display:block;padding:10px;text-align:center;background:#f9fafb;
+            border:1px solid #e5e5e5;border-radius:8px;font-size:13px;
+            color:#555;text-decoration:none;margin-bottom:8px">
                         ✏️ Edit Tempat Ini
                     </a>
-                    <form action="/places/<?= (int)$place['id'] ?>/delete" method="POST"
-                        onsubmit="return confirm('Yakin hapus tempat ini? Semua ulasan ikut terhapus.')">
+
+                    <form action="/places/<?= (int)$place['id'] ?>/delete"
+                        method="POST"
+                        onsubmit="return confirm('Yakin hapus tempat ini?')">
+
                         <?= csrf_field() ?>
+
                         <button type="submit"
-                            style="width:100%; padding:10px; background:#fff; border:1px solid #fca5a5;
-                       color:#dc2626; border-radius:8px; font-size:13px; cursor:pointer">
+                            style="width:100%;padding:10px;background:#fff;
+                border:1px solid #fca5a5;color:#dc2626;
+                border-radius:8px;font-size:13px;cursor:pointer">
                             🗑️ Hapus Tempat
                         </button>
                     </form>
@@ -677,8 +700,8 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // ── Peta mini ──────────────────────────────────────────
-        <?php if ($place['latitude'] && $place['longitude']): ?>
+        // Peta mini
+        <?php if (!empty($place['latitude']) && !empty($place['longitude'])): ?>
             const map = L.map('map-detail', {
                     scrollWheelZoom: false
                 })
@@ -688,11 +711,11 @@
             }).addTo(map);
             L.marker([<?= (float)$place['latitude'] ?>, <?= (float)$place['longitude'] ?>])
                 .addTo(map)
-                .bindPopup('<strong><?= esc($place['name']) ?></strong>')
+                .bindPopup('<strong><?= esc(addslashes($place['name'])) ?></strong>')
                 .openPopup();
         <?php endif; ?>
 
-        // ── Label rating bintang ────────────────────────────────
+        // Label rating bintang
         const ratingLabel = {
             1: '😞 Buruk',
             2: '😐 Kurang',
@@ -702,16 +725,16 @@
         };
         document.querySelectorAll('.star-picker input').forEach(input => {
             input.addEventListener('change', () => {
-                document.getElementById('rating-hint').textContent = ratingLabel[input.value] + ' (' + input.value + ' bintang)';
+                document.getElementById('rating-hint').textContent =
+                    ratingLabel[input.value] + ' (' + input.value + ' bintang)';
             });
         });
 
-        // ── Hitung karakter komentar ────────────────────────────
+        // Hitung karakter komentar
         document.getElementById('comment')?.addEventListener('input', function() {
             document.getElementById('char-used').textContent = this.value.length;
         });
     </script>
-
 </body>
 
 </html>

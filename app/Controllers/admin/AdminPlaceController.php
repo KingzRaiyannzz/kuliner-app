@@ -5,8 +5,18 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Models\PlaceModel;
 
-class PlaceController extends BaseController
+class AdminPlaceController extends BaseController
 {
+
+    public function index()
+    {
+        // Contoh jika ingin mengambil data dari model
+        $placeModel = new PlaceModel();
+        $data['places'] = $placeModel->findAll();
+
+        // Arahkan ke file view admin tempat kamu
+        return view('admin/places/index', $data); 
+    }
     // Verifikasi tempat kuliner
     public function verify(int $id)
     {
