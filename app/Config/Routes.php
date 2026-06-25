@@ -64,8 +64,8 @@ $routes->group('admin', ['filter' => 'admin'], function ($routes) {
 
     // Moderasi tempat (approve / reject)
     $routes->get('places',                  'Admin\AdminPlaceController::index');
-    $routes->post('places/(:num)/verify',   'Admin\PlaceController::verify/$1');
-    $routes->post('places/(:num)/delete',   'Admin\PlaceController::destroy/$1');
+    $routes->post('places/(:num)/verify',   'Admin\AdminPlaceController::verify/$1');
+    $routes->post('places/(:num)/delete',   'Admin\AdminPlaceController::destroy/$1');
 
     // Moderasi review
     $routes->get('reviews',                 'Admin\ReviewController::index');

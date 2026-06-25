@@ -13,36 +13,30 @@ class AdminDashboardController extends BaseController
 {
     public function index()
     {
-        $placeModel    = new PlaceModel();
-        $reviewModel   = new ReviewModel();
-        $userModel     = new UserModel();
-        $categoryModel = new CategoryModel();
-        $tagModel      = new TagModel();
-
-        return view('admin/AdminDashboard', [
-            'title'          => 'Dashboard Admin',
-            'total_places'   => $placeModel->countAll(),
-            'total_reviews'  => $reviewModel->countAll(),
-            'total_users'    => $userModel->countAll(),
-            'total_categories' => $categoryModel->countAll(),
-            'total_tags'     => $tagModel->countAll(),
-            'unverified'     => $placeModel->where('is_verified', 0)->countAllResults(),
-            'recent_places'  => $placeModel->orderBy('created_at', 'DESC')->limit(5)->findAll(),
-            'recent_reviews' => $reviewModel->orderBy('created_at', 'DESC')->limit(5)->findAll(),
-        ]);
-    }
-
-    // Verifikasi tempat
-    public function verify(int $id)
-    {
         $placeModel = new PlaceModel();
-        $place = $placeModel->find($id);
+        $reviewModel = new ReviewModel();
+        $userModel = new UserModel();
+        $categoryModel = new CategoryModel();
+        $tagModel = new TagModel();
 
-        if (!$place) {
-            return redirect()->to('/admin')->with('error', 'Tempat tidak ditemukan.');
-        }
+        $data = [
+            'title' => 'Dashboard Admin',
+            'total_places' => $placeModel->countAll(),
+            'total_reviews' => $reviewModel->countAll(),
+            'total_users' => $userModel->countAll(),
+            'total_categories' => $categoryModel->countAll(),
+            'total_tags' => $tagModel->countAll(),
+            'unverified' => $placeModel
+                ->where('is_verified', 0)
+                ->countAllResults(),
+            'recent_places' => $placeModel
+                ->orderBy('created_at', 'DESC')
+                ->findAll(5),
+            'recent_reviews' => $reviewModel
+                ->orderBy('created_at', 'DESC')
+                ->findAll(5),
+        ];
 
-        $placeModel->update($id, ['is_verified' => 1]);
-        return redirect()->to('/admin')->with('success', "Tempat \"{$place['name']}\" berhasil diverifikasi.");
+        return view('admin/AdminDashboard', $data);
     }
 }
