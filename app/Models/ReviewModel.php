@@ -6,13 +6,6 @@ use CodeIgniter\Model;
 
 class ReviewModel extends Model
 {
-    public function hasReviewed(int $userId, int $placeId): bool
-    {
-        return $this->where('user_id', $userId)
-            ->where('place_id', $placeId)
-            ->countAllResults() > 0;
-    }
-
     protected $table            = 'reviews';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
@@ -57,4 +50,11 @@ class ReviewModel extends Model
     protected $afterFind      = [];
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
+
+    public function hasReviewed(int $userId, int $placeId): bool
+    {
+        return $this->where('user_id', $userId)
+            ->where('place_id', $placeId)
+            ->countAllResults() > 0;
+    }
 }

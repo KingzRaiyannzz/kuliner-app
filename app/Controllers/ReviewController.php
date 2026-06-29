@@ -130,11 +130,4 @@ class ReviewController extends BaseController
         return redirect()->to('/places/' . $placeId . '#reviews')
             ->with('success', 'Ulasan berhasil dihapus.');
     }
-
-    public function hasReviewed(int $userId, int $placeId): bool
-    {
-        return $this->where('user_id', $userId)
-            ->where('place_id', $placeId)
-            ->countAllResults() > 0;
-    }
 }

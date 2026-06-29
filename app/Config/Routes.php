@@ -50,28 +50,36 @@ $routes->group('', ['filter' => 'kontributor'], function ($routes) {
 $routes->group('admin', ['filter' => 'admin'], function ($routes) {
 
     // Dashboard
-    $routes->get('/',                       'Admin\AdminDashboardController::index');
+    $routes->get('/', 'Admin\AdminDashboardController::index');
 
-    // Kelola kategori
-    $routes->get('categories',              'Admin\CategoryController::index');
-    $routes->post('categories',             'Admin\CategoryController::store');
+    // Tempat
+    $routes->get('places', 'Admin\AdminPlaceController::index');
+    $routes->post('places/(:num)/verify', 'Admin\AdminPlaceController::verify/$1');
+    $routes->post('places/(:num)/delete', 'Admin\AdminPlaceController::destroy/$1');
+
+    // Kategori
+    $routes->get('categories', 'Admin\CategoryController::index');
+    $routes->post('categories', 'Admin\CategoryController::store');
     $routes->post('categories/(:num)/delete', 'Admin\CategoryController::destroy/$1');
 
-    // Kelola tag
-    $routes->get('tags',                    'Admin\TagController::index');
-    $routes->post('tags',                   'Admin\TagController::store');
-    $routes->post('tags/(:num)/delete',     'Admin\TagController::destroy/$1');
+    // Tag
+    $routes->get('tags', 'Admin\TagController::index');
+    $routes->post('tags', 'Admin\TagController::store');
+    $routes->post('tags/(:num)/delete', 'Admin\TagController::destroy/$1');
 
-    // Moderasi tempat (approve / reject)
-    $routes->get('places',                  'Admin\AdminPlaceController::index');
-    $routes->post('places/(:num)/verify',   'Admin\AdminPlaceController::verify/$1');
-    $routes->post('places/(:num)/delete',   'Admin\AdminPlaceController::destroy/$1');
+    // Review
+    $routes->get('reviews', 'Admin\ReviewController::index');
+    $routes->post('reviews/(:num)/delete', 'Admin\ReviewController::destroy/$1');
 
-    // Moderasi review
-    $routes->get('reviews',                 'Admin\ReviewController::index');
-    $routes->post('reviews/(:num)/delete',  'Admin\ReviewController::destroy/$1');
+    // User
+    $routes->get('users', 'Admin\UserController::index');
+    $routes->post('users/(:num)/role', 'Admin\UserController::updateRole/$1');
+});
 
-    // Kelola user
-    $routes->get('users',                   'Admin\UserController::index');
-    $routes->post('users/(:num)/role',      'Admin\UserController::updateRole/$1');
+// ================================================================
+// API ROUTES
+// ================================================================
+$routes->group('api', function ($routes) {
+    $routes->get('kuliner', 'ApiController::index');
+    $routes->get('kuliner/(:num)', 'ApiController::show/$1');
 });

@@ -2,6 +2,9 @@
 
 namespace App\Controllers;
 
+use CodeIgniter\Database\BaseConnection;
+use Config\Database;
+
 class ApiController extends BaseController
 {
     /**
@@ -13,6 +16,14 @@ class ApiController extends BaseController
      *   ?search=keyword         → cari nama
      *   ?limit=10               → batas hasil
      */
+
+    protected BaseConnection $db;
+
+    public function __construct()
+    {
+        $this->db = Database::connect();
+    }
+
     public function index()
     {
         // Set header JSON
