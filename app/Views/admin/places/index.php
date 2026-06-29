@@ -1,5 +1,6 @@
-<?= $this->include('admin/layouts/header') ?>
-<?= $this->include('admin/layouts/sidebar') ?>
+<?= $this->extend('admin/layouts/master') ?>
+
+<?= $this->section('content') ?>
 
 <h1>Kelola Tempat</h1>
 
@@ -25,4 +26,5 @@
     <?php endforeach; ?>
 </table>
 
-<?= $this->include('admin/layouts/footer') ?>
+
+<?= $this->endSection() ?>

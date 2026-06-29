@@ -1,5 +1,6 @@
-<?= $this->include('admin/layouts/header') ?>
-<?= $this->include('admin/layouts/sidebar') ?>
+<?= $this->extend('admin/layouts/master') ?>
+
+<?= $this->section('content') ?>
 
 <h1>Kelola Review</h1>
 
@@ -23,4 +24,5 @@
 
 </table>
 
-<?= $this->include('admin/layouts/footer') ?>
+
+<?= $this->endSection() ?>

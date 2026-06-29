@@ -1,28 +1,39 @@
-<?= $this->include('admin/layouts/header') ?>
-<?= $this->include('admin/layouts/sidebar') ?>
+<?= $this->extend('admin/layouts/master') ?>
 
-<h1>Kelola User</h1>
+<?= $this->section('content') ?>
 
-<table>
+<div class="card">
 
-    <tr>
-        <th>ID</th>
-        <th>Nama</th>
-        <th>Email</th>
-        <th>Role</th>
-    </tr>
+    <h2>Kelola User</h2>
 
-    <?php foreach ($users as $user): ?>
+    <table>
 
         <tr>
-            <td><?= $user['id'] ?></td>
-            <td><?= $user['name'] ?></td>
-            <td><?= $user['email'] ?></td>
-            <td><?= $user['role'] ?></td>
+
+            <th>ID</th>
+
+            <th>Nama</th>
+
+            <th>Email</th>
+
         </tr>
 
-    <?php endforeach ?>
+        <?php foreach ($users as $user): ?>
 
-</table>
+            <tr>
 
-<?= $this->include('admin/layouts/footer') ?>
+                <td><?= $user['id'] ?></td>
+
+                <td><?= esc($user['name']) ?></td>
+
+                <td><?= esc($user['email']) ?></td>
+
+            </tr>
+
+        <?php endforeach; ?>
+
+    </table>
+
+</div>
+
+<?= $this->endSection() ?>
