@@ -40,6 +40,34 @@ class AdminPlaceController extends BaseController
             ->with('success', 'Tempat berhasil diverifikasi.');
     }
 
+    public function edit($id)
+    {
+        $placeModel = new PlaceModel();
+
+        $place = $placeModel->find($id);
+
+        if (!$place) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        return view('admin/places/edit', [
+            'title' => 'Edit Tempat',
+            'place' => $place
+        ]);
+    }
+
+    public function update($id)
+    {
+        $placeModel = new PlaceModel();
+
+        $placeModel->update($id, [
+            'name' => $this->request->getPost('name')
+        ]);
+
+        return redirect()->to('/admin/places')
+            ->with('success', 'Data berhasil diupdate');
+    }
+
     public function destroy(int $id)
     {
         $place = $this->placeModel->find($id);

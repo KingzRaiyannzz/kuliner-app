@@ -75,7 +75,12 @@ $routes->group('admin', ['filter' => 'admin'], function ($routes) {
     $routes->get('users', 'Admin\UserController::index');
     $routes->post('users/(:num)/role', 'Admin\UserController::updateRole/$1');
 
-    
+    // Tempat
+    $routes->get('places', 'Admin\AdminPlaceController::index');
+    $routes->get('places/edit/(:num)', 'Admin\AdminPlaceController::edit/$1');
+    $routes->post('places/update/(:num)', 'Admin\AdminPlaceController::update/$1');
+    $routes->post('places/(:num)/verify', 'Admin\AdminPlaceController::verify/$1');
+    $routes->post('places/(:num)/delete', 'Admin\AdminPlaceController::destroy/$1');
 });
 
 // ================================================================

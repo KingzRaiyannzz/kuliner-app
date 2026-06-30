@@ -2,27 +2,60 @@
 
 <?= $this->section('content') ?>
 
-<h1>Kelola Review</h1>
+<div class="card">
 
-<table>
+    <h2>Kelola Review</h2>
 
-    <tr>
-        <th>ID</th>
-        <th>Rating</th>
-        <th>Komentar</th>
-    </tr>
+    <table>
 
-    <?php foreach ($reviews as $review): ?>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tempat</th>
+                <th>User</th>
+                <th>Rating</th>
+                <th>Komentar</th>
+                <th>Tanggal</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
 
-        <tr>
-            <td><?= $review['id'] ?></td>
-            <td><?= $review['rating'] ?></td>
-            <td><?= $review['comment'] ?></td>
-        </tr>
+        <tbody>
+            <?php if (empty($reviews)): ?>
+                <tr>
+                    <td colspan="7" style="text-align:center;">Belum ada review</td>
+                </tr>
+            <?php else: ?>
+                <?php foreach ($reviews as $review): ?>
+                    <tr>
+                        <td><?= esc($review['id']) ?></td>
+                        <td><?= esc($review['place_name'] ?? '-') ?></td>
+                        <td><?= esc($review['user_name'] ?? '-') ?></td>
+                        <td><?= esc($review['rating']) ?></td>
+                        <td><?= esc($review['comment'] ?? '-') ?></td>
+                        <td><?= esc($review['created_at'] ?? '-') ?></td>
+                        <td>
+                            <form
+                                action="<?= base_url('admin/reviews/' . $review['id'] . '/delete') ?>"
+                                method="post"
+                                style="display:inline;">
 
-    <?php endforeach ?>
+                                <?= csrf_field() ?>
 
-</table>
+                                <button
+                                    class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Hapus review ini?')">
+                                    Hapus
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach ?>
+            <?php endif; ?>
+        </tbody>
 
+    </table>
+
+</div>
 
 <?= $this->endSection() ?>
