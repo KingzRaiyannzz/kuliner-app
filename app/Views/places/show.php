@@ -659,18 +659,8 @@
                 </div>
             <?php endif; ?>
 
-            <!-- Tombol Edit/Hapus untuk pemilik -->
-            <div class="card">
-                <pre>
-Session User ID : <?= session()->get('user_id') ?? 'NULL' ?>
-Place User ID   : <?= $place['user_id'] ?? 'NULL' ?>
-</pre>
-            </div>
-
-            <?php if (
-                session()->get('logged_in')
-                && session()->get('role') !== 'admin'
-            ): ?>
+            <!-- Tombol Edit/Hapus untuk pemilik atau admin -->
+            <?php if (!empty($canManagePlace)): ?>
                 <div class="card">
                     <a href="/places/<?= (int)$place['id'] ?>/edit"
                         style="display:block;padding:10px;text-align:center;background:#f9fafb;

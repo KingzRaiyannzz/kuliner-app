@@ -8,7 +8,7 @@
 
     <thead>
         <tr>
-            <th>ID</th>
+            <th>No</th>
             <th>Nama</th>
             <th>Status</th>
             <th>Aksi</th>
@@ -17,11 +17,11 @@
 
     <tbody>
 
-        <?php foreach ($places as $place): ?>
+        <?php foreach ($places as $index => $place): ?>
 
             <tr>
 
-                <td><?= $place['id'] ?></td>
+                <td><?= $index + 1 ?></td>
 
                 <td><?= esc($place['name']) ?></td>
 

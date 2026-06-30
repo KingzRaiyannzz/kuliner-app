@@ -16,6 +16,19 @@ class PlaceController extends BaseController
         $this->db = \Config\Database::connect();
     }
 
+    private function canManagePlace(array $place): bool
+    {
+        if (!session()->get('isLoggedIn')) {
+            return false;
+        }
+
+        if (session()->get('user_role') === 'admin') {
+            return true;
+        }
+
+        return (int) session()->get('user_id') === (int) ($place['user_id'] ?? 0);
+    }
+
     public function index()
     {
         // ... (Tetap gunakan kode index Anda yang sebelumnya) ...
@@ -46,10 +59,14 @@ class PlaceController extends BaseController
             ->join('categories c', 'c.id = pc.category_id', 'left')
             ->join('place_tags pt', 'pt.place_id = p.id', 'left')
             ->join('tags t', 't.id = pt.tag_id', 'left')
+            ->where('p.deleted_at IS NULL')
             ->groupBy('p.id');
 
         if (!empty($search)) {
-            $builder->like('p.name', $search)->orLike('p.address', $search);
+            $builder->groupStart()
+                ->like('p.name', $search)
+                ->orLike('p.address', $search)
+                ->groupEnd();
         }
         if (!empty($category)) {
             $builder->where('c.slug', $category);
@@ -94,8 +111,9 @@ class PlaceController extends BaseController
         ];
 
         $categories = $this->db->table('categories c')
-            ->select('c.*, COUNT(pc.place_id) as place_count')
+            ->select('c.*, COUNT(p.id) as place_count')
             ->join('place_categories pc', 'pc.category_id = c.id', 'left')
+            ->join('places p', 'p.id = pc.place_id AND p.deleted_at IS NULL', 'left')
             ->groupBy('c.id')
             ->get()->getResultArray();
 
@@ -284,7 +302,8 @@ class PlaceController extends BaseController
             'place'        => $place,
             'reviews'      => $reviews,
             'distribution' => $distribution,
-            'hasReviewed'  => $hasReviewed
+            'hasReviewed'  => $hasReviewed,
+            'canManagePlace' => $this->canManagePlace($place),
         ]);
     }
 
@@ -298,10 +317,33 @@ class PlaceController extends BaseController
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
+        if (!$this->canManagePlace($place)) {
+            return redirect()->to('/places/' . $id)
+                ->with('error', 'Kamu tidak punya izin untuk mengedit tempat ini.');
+        }
+
         $data = [
             'place' => $place,
             'categories' => $this->db->table('categories')->get()->getResultArray(),
-            'tags' => $this->db->table('tags')->get()->getResultArray()
+            'tags' => $this->db->table('tags')->get()->getResultArray(),
+            'selectedCategories' => array_column(
+                $this->db->table('place_categories')
+                    ->select('category_id')
+                    ->where('place_id', $id)
+                    ->get()
+                    ->getResultArray(),
+                'category_id'
+            ),
+            'selectedTags' => array_column(
+                $this->db->table('place_tags')
+                    ->select('tag_id')
+                    ->where('place_id', $id)
+                    ->get()
+                    ->getResultArray(),
+                'tag_id'
+            ),
+            'errors' => session()->getFlashdata('errors') ?? [],
+            'old' => session()->getFlashdata('_ci_old_input')['post'] ?? [],
         ];
 
         return view('places/edit', $data);
@@ -317,6 +359,25 @@ class PlaceController extends BaseController
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
+        if (!$this->canManagePlace($place)) {
+            return redirect()->to('/places/' . $id)
+                ->with('error', 'Kamu tidak punya izin untuk memperbarui tempat ini.');
+        }
+
+        $rules = [
+            'name'        => 'required|min_length[3]',
+            'address'     => 'required',
+            'latitude'    => 'required',
+            'longitude'   => 'required',
+            'description' => 'permit_empty|max_length[1000]',
+        ];
+
+        if (!$this->validate($rules)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('errors', $this->validator->getErrors());
+        }
+
         $data = [
             'name'        => $this->request->getPost('name'),
             'address'     => $this->request->getPost('address'),
@@ -326,6 +387,12 @@ class PlaceController extends BaseController
         ];
 
         $placeModel->update($id, $data);
+
+        $categories = $this->request->getPost('categories') ?? [];
+        $placeModel->syncCategories((int) $id, is_array($categories) ? $categories : []);
+
+        $tags = $this->request->getPost('tags') ?? [];
+        $placeModel->syncTags((int) $id, is_array($tags) ? $tags : []);
 
         return redirect()->to('/places/' . $id)
             ->with('success', 'Tempat berhasil diperbarui.');
@@ -339,14 +406,19 @@ class PlaceController extends BaseController
         $place = $placeModel->find($id);
 
         if (!$place) {
-        return redirect()->back()
-            ->with('error', 'Data tidak ditemukan');
+            return redirect()->back()
+                ->with('error', 'Data tidak ditemukan');
+        }
+
+        if (!$this->canManagePlace($place)) {
+            return redirect()->to('/places/' . $id)
+                ->with('error', 'Kamu tidak punya izin untuk menghapus tempat ini.');
+        }
+
+        // hapus data
+        $placeModel->delete($id);
+
+        return redirect()->to('/places')
+            ->with('success', 'Tempat berhasil dihapus');
     }
-
-    // hapus data
-    $placeModel->delete($id);
-
-    return redirect()->to('/admin/places')
-        ->with('success', 'Tempat berhasil dihapus');
-}
 }

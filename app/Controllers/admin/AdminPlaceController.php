@@ -52,7 +52,27 @@ class AdminPlaceController extends BaseController
 
         return view('admin/places/edit', [
             'title' => 'Edit Tempat',
-            'place' => $place
+            'place' => $place,
+            'categories' => \Config\Database::connect()->table('categories')->get()->getResultArray(),
+            'tags' => \Config\Database::connect()->table('tags')->get()->getResultArray(),
+            'selectedCategories' => array_column(
+                \Config\Database::connect()->table('place_categories')
+                    ->select('category_id')
+                    ->where('place_id', $id)
+                    ->get()
+                    ->getResultArray(),
+                'category_id'
+            ),
+            'selectedTags' => array_column(
+                \Config\Database::connect()->table('place_tags')
+                    ->select('tag_id')
+                    ->where('place_id', $id)
+                    ->get()
+                    ->getResultArray(),
+                'tag_id'
+            ),
+            'errors' => session()->getFlashdata('errors') ?? [],
+            'old' => session()->getFlashdata('_ci_old_input')['post'] ?? [],
         ]);
     }
 
@@ -60,9 +80,39 @@ class AdminPlaceController extends BaseController
     {
         $placeModel = new PlaceModel();
 
+        $place = $placeModel->find($id);
+
+        if (!$place) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        $rules = [
+            'name'        => 'required|min_length[3]',
+            'address'     => 'required',
+            'latitude'    => 'required',
+            'longitude'   => 'required',
+            'description' => 'permit_empty|max_length[1000]',
+        ];
+
+        if (!$this->validate($rules)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('errors', $this->validator->getErrors());
+        }
+
         $placeModel->update($id, [
-            'name' => $this->request->getPost('name')
+            'name'        => $this->request->getPost('name'),
+            'address'     => $this->request->getPost('address'),
+            'description' => $this->request->getPost('description'),
+            'latitude'    => $this->request->getPost('latitude'),
+            'longitude'   => $this->request->getPost('longitude'),
         ]);
+
+        $categories = $this->request->getPost('categories') ?? [];
+        $placeModel->syncCategories((int) $id, is_array($categories) ? $categories : []);
+
+        $tags = $this->request->getPost('tags') ?? [];
+        $placeModel->syncTags((int) $id, is_array($tags) ? $tags : []);
 
         return redirect()->to('/admin/places')
             ->with('success', 'Data berhasil diupdate');
