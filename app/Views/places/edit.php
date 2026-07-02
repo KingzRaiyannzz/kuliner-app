@@ -66,6 +66,7 @@
         }
 
         input[type="text"],
+        input[type="file"],
         textarea {
             width: 100%;
             border: 1px solid #d1d5db;
@@ -140,6 +141,21 @@
             background: #f3f4f6;
             color: #555;
         }
+
+        .current-photo {
+            width: 100%;
+            max-height: 220px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid #e5e5e5;
+            margin-top: 8px;
+        }
+
+        .field-hint {
+            color: #888;
+            font-size: 12px;
+            margin-top: 4px;
+        }
     </style>
 </head>
 
@@ -160,7 +176,7 @@
                 </div>
             <?php endif; ?>
 
-            <form action="/places/<?= (int) $place['id'] ?>/update" method="POST">
+            <form action="/places/<?= (int) $place['id'] ?>/update" method="POST" enctype="multipart/form-data">
                 <?= csrf_field() ?>
 
                 <label for="name">Nama tempat</label>
@@ -236,6 +252,20 @@
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+
+                <label for="thumbnail">Foto tempat</label>
+                <?php if (!empty($place['thumbnail'])): ?>
+                    <img
+                        src="/<?= esc($place['thumbnail']) ?>"
+                        class="current-photo"
+                        alt="<?= esc($place['name']) ?>">
+                <?php endif; ?>
+                <input
+                    type="file"
+                    id="thumbnail"
+                    name="thumbnail"
+                    accept="image/jpeg,image/png,image/webp">
+                <div class="field-hint">Kosongkan jika tidak ingin mengganti foto. Maksimal 2MB, format JPG/PNG/WebP.</div>
 
                 <div class="actions">
                     <button type="submit" class="btn btn-primary">Simpan Perubahan</button>

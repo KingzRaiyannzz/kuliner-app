@@ -315,7 +315,7 @@
                 <strong><?= esc(session()->get('user_name')) ?></strong>
                 Administrator
             </div>
-        </div> 
+        </div>
 
         <!-- Main -->
         <div class="main">

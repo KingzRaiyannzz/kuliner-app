@@ -71,8 +71,13 @@ class ReviewController extends BaseController
                 return redirect()->to('/places/' . $placeId . '#review-form');
             }
 
+            $uploadPath = FCPATH . 'uploads/reviews';
+            if (!is_dir($uploadPath)) {
+                mkdir($uploadPath, 0775, true);
+            }
+
             $newName = $photo->getRandomName();
-            $photo->move(WRITEPATH . 'uploads/reviews', $newName);
+            $photo->move($uploadPath, $newName);
             $photoPath = 'uploads/reviews/' . $newName;
         }
 
@@ -118,8 +123,8 @@ class ReviewController extends BaseController
         $placeId = $review['place_id'];
 
         // Hapus foto dari storage jika ada
-        if ($review['photo'] && file_exists(WRITEPATH . $review['photo'])) {
-            unlink(WRITEPATH . $review['photo']);
+        if ($review['photo'] && file_exists(FCPATH . $review['photo'])) {
+            unlink(FCPATH . $review['photo']);
         }
 
         $this->reviewModel->delete($id);

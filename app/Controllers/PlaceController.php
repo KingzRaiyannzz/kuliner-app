@@ -10,6 +10,7 @@ use App\Models\ReviewModel;
 class PlaceController extends BaseController
 {
     protected $db;
+    private string $placeUploadDir = 'uploads/places';
 
     public function __construct()
     {
@@ -27,6 +28,25 @@ class PlaceController extends BaseController
         }
 
         return (int) session()->get('user_id') === (int) ($place['user_id'] ?? 0);
+    }
+
+    private function uploadPlaceThumbnail(): ?string
+    {
+        $thumbnail = $this->request->getFile('thumbnail');
+
+        if (!$thumbnail || !$thumbnail->isValid() || $thumbnail->hasMoved()) {
+            return null;
+        }
+
+        $uploadPath = FCPATH . $this->placeUploadDir;
+        if (!is_dir($uploadPath)) {
+            mkdir($uploadPath, 0775, true);
+        }
+
+        $newName = $thumbnail->getRandomName();
+        $thumbnail->move($uploadPath, $newName);
+
+        return $this->placeUploadDir . '/' . $newName;
     }
 
     public function index()
@@ -162,7 +182,7 @@ class PlaceController extends BaseController
             'address'     => 'required',
             'latitude'    => 'required',
             'longitude'   => 'required',
-            'thumbnail'   => 'max_size[thumbnail,2048]|is_image[thumbnail]|mime_in[thumbnail,image/jpg,image/jpeg,image/png]',
+            'thumbnail'   => 'permit_empty|max_size[thumbnail,2048]|is_image[thumbnail]|mime_in[thumbnail,image/jpg,image/jpeg,image/png,image/webp]',
         ];
 
         if (!$this->validate($rules)) {
@@ -170,14 +190,7 @@ class PlaceController extends BaseController
         }
 
         // 2. Proses Upload Gambar (jika ada file yang diunggah)
-        $thumbnailName = null;
-        $fileFile = $this->request->getFile('thumbnail');
-
-        if ($fileFile && $fileFile->isValid() && !$fileFile->hasMoved()) {
-            $thumbnailName = $fileFile->getRandomName();
-            // File akan disimpan di folder: public/uploads/
-            $fileFile->move(FCPATH . 'uploads', $thumbnailName);
-        }
+        $thumbnailPath = $this->uploadPlaceThumbnail();
 
         // 3. Siapkan data utama tabel places
         $dataPlace = [
@@ -188,7 +201,7 @@ class PlaceController extends BaseController
             'description' => $this->request->getPost('description') ?? '',
             'latitude'    => $this->request->getPost('latitude'),
             'longitude'   => $this->request->getPost('longitude'),
-            'thumbnail'   => $thumbnailName,
+            'thumbnail'   => $thumbnailPath,
 
             'created_at'  => date('Y-m-d H:i:s'),
             'updated_at'  => date('Y-m-d H:i:s'),
@@ -370,6 +383,7 @@ class PlaceController extends BaseController
             'latitude'    => 'required',
             'longitude'   => 'required',
             'description' => 'permit_empty|max_length[1000]',
+            'thumbnail'   => 'permit_empty|max_size[thumbnail,2048]|is_image[thumbnail]|mime_in[thumbnail,image/jpg,image/jpeg,image/png,image/webp]',
         ];
 
         if (!$this->validate($rules)) {
@@ -385,6 +399,15 @@ class PlaceController extends BaseController
             'latitude'    => $this->request->getPost('latitude'),
             'longitude'   => $this->request->getPost('longitude'),
         ];
+
+        $thumbnailPath = $this->uploadPlaceThumbnail();
+        if ($thumbnailPath !== null) {
+            $data['thumbnail'] = $thumbnailPath;
+
+            if (!empty($place['thumbnail']) && is_file(FCPATH . $place['thumbnail'])) {
+                unlink(FCPATH . $place['thumbnail']);
+            }
+        }
 
         $placeModel->update($id, $data);
 

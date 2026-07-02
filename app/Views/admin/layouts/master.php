@@ -95,6 +95,7 @@
         /* Main Content*/
         .main {
             flex: 1;
+            min-width: 0;
             height: 100vh;
             overflow-y: auto;
         }

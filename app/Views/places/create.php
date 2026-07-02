@@ -381,8 +381,8 @@
 
                 <div class="form-group">
                     <label for="thumbnail">Foto Tempat (opsional)</label>
-                    <input type="file" name="thumbnail" accept="image/*">
-                    <div class="field-hint">Ukuran maksimal 2MB, format JPG/PNG</div>
+                    <input type="file" name="thumbnail" accept="image/jpeg,image/png,image/webp">
+                    <div class="field-hint">Ukuran maksimal 2MB, format JPG/PNG/WebP</div>
                 </div>
             </div>
 
